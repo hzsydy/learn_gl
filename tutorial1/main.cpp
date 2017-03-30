@@ -1,7 +1,8 @@
 #include "shader.h"
+#include <thread>
 
 // One color for each vertex. They were generated randomly.
-static const GLfloat g_color_buffer_data[] = {
+static GLfloat g_color_buffer_data[] = {
     0.583f,  0.771f,  0.014f,
     0.609f,  0.115f,  0.436f,
     0.327f,  0.483f,  0.844f,
@@ -78,6 +79,15 @@ static const GLfloat g_vertex_buffer_data[] = {
     -1.0f, 1.0f, 1.0f,
     1.0f,-1.0f, 1.0f
 };
+
+std::random_device rd;
+std::mt19937 rng(rd());
+
+float gen_random_float(float min=0.0f, float max=1.0f)
+{
+    std::uniform_real_distribution<float> dist(min, max);
+    return dist(rng);
+}
 
 int main()
 {
@@ -158,6 +168,15 @@ int main()
 
 
     do {
+
+        //randomly change color
+        for (int v = 0; v < 12 * 3; v++) {
+            g_color_buffer_data[3 * v + 0] = gen_random_float();
+            g_color_buffer_data[3 * v + 1] = gen_random_float();
+            g_color_buffer_data[3 * v + 2] = gen_random_float();
+        }
+        glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         // Use our shader
         glUseProgram(programID);
@@ -200,6 +219,8 @@ int main()
         // Swap buffers
         glfwSwapBuffers(window);
         glfwPollEvents();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     } // Check if the ESC key was pressed or the window was closed
     while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
