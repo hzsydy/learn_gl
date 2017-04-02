@@ -17,11 +17,90 @@ float gen_random_float(float min=0.0f, float max=1.0f)
     return dist(rng);
 }
 
+/**********************
+* CAMERA MOVE WITH KEYBOARD
+***********************/
+bool keys[1024];  
+glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f,  3.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+GLfloat deltaTime = 0.0f;	// Time between current frame and last frame
+GLfloat lastFrame = 0.0f;  	// Time of last frame
+
 // Is called whenever a key is pressed/released via GLFW
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode)
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
+    if(action == GLFW_PRESS)
+        keys[key] = true;
+    else if(action == GLFW_RELEASE)
+        keys[key] = false;  
+}
+
+GLfloat lastX = 400, lastY = 300;
+bool firstMouse = true;
+GLfloat roll = 0, yaw = 0, pitch = 0;
+
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    if(firstMouse)
+    {
+        lastX = (GLfloat)xpos;
+        lastY = (GLfloat)ypos;
+        firstMouse = false;
+    }
+    else
+    {
+        GLfloat xoffset = (GLfloat)xpos - lastX;
+        GLfloat yoffset = lastY - (GLfloat)ypos; 
+        lastX = (GLfloat)xpos;
+        lastY = (GLfloat)ypos;
+
+        GLfloat sensitivity = 0.01f;
+        xoffset *= sensitivity;
+        yoffset *= sensitivity;
+
+        yaw   += xoffset;
+        pitch += yoffset;
+
+        if(pitch > 89.0f)
+            pitch = 89.0f;
+        if(pitch < -89.0f)
+            pitch = -89.0f;
+
+        glm::vec3 front;
+        //front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+        //front.y = sin(glm::radians(pitch));
+        //front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        front.x = sin(glm::radians(yaw));
+        front.y = sin(glm::radians(pitch)) * cos(glm::radians(yaw));
+        front.z = -1.0f*cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+
+        cameraFront = glm::normalize(front);
+    }
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    GLfloat scrollSpeed = 0.05f;
+    cameraPos += (GLfloat)yoffset * scrollSpeed * cameraFront;
+}
+
+void do_movement()
+{
+    GLfloat currentFrame = glfwGetTime();
+    deltaTime = currentFrame - lastFrame;
+    lastFrame = currentFrame;  
+    // Camera controls
+    GLfloat cameraSpeed = 5.0f * deltaTime;
+    if(keys[GLFW_KEY_W])
+        cameraPos += glm::normalize(glm::cross(cameraFront, glm::vec3(1.0f, 0.0f, 0.0f))) * cameraSpeed;
+    if(keys[GLFW_KEY_S])
+        cameraPos -= glm::normalize(glm::cross(cameraFront, glm::vec3(1.0f, 0.0f, 0.0f))) * cameraSpeed;
+    if(keys[GLFW_KEY_A])
+        cameraPos += glm::normalize(glm::cross(cameraFront, glm::vec3(0.0f, 1.0f, 0.0f))) * cameraSpeed;
+    if(keys[GLFW_KEY_D])
+        cameraPos -= glm::normalize(glm::cross(cameraFront, glm::vec3(0.0f, 1.0f, 0.0f))) * cameraSpeed;
 }
 
 int main()
@@ -49,8 +128,11 @@ int main()
     }
     glfwMakeContextCurrent(window); // Initialize GLEW
 
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); 
     // Set the required callback functions
     glfwSetKeyCallback(window, key_callback);
+    glfwSetCursorPosCallback(window, mouse_callback); 
+    glfwSetScrollCallback(window, scroll_callback); 
 
     glewExperimental = true; // Needed in core profile
     if (glewInit() != GLEW_OK) {
@@ -137,6 +219,9 @@ int main()
 
     // Create and compile our GLSL program from the shaders
     GLuint shaderProgram = LoadShaders("./shaders/TextureVertexShader.glsl", "./shaders/TextureFragmentShader.glsl");
+    GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
+    GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
+    GLint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
 
     GLuint texture = LoadTexture2D("./wall.jpg");
 
@@ -146,22 +231,16 @@ int main()
     {
         // Check and call events
         glfwPollEvents();
+        do_movement();  
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glm::mat4 model;
-        model = glm::rotate(model, .5f*c++, glm::vec3(0.0f, 0.7f, 0.7f)); 
         glm::mat4 view;
-        // Note that we're translating the scene in the reverse direction of where we want to move
-        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f)); 
+        view = glm::lookAt(cameraPos, cameraPos + cameraFront, glm::vec3(0.0f, 1.0f, 0.0f));
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
         glm::mat4 projection;
         projection = glm::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.0f);
-
-        GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        GLint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
         // Use our shader
@@ -170,15 +249,38 @@ int main()
         // Draw 
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(vao);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        glm::vec3 cubePositions[] = {
+            glm::vec3( 0.0f,  0.0f,  0.0f), 
+            glm::vec3( 2.0f,  5.0f, -15.0f), 
+            glm::vec3(-1.5f, -2.2f, -2.5f),  
+            glm::vec3(-3.8f, -2.0f, -12.3f),  
+            glm::vec3( 2.4f, -0.4f, -3.5f),  
+            glm::vec3(-1.7f,  3.0f, -7.5f),  
+            glm::vec3( 1.3f, -2.0f, -2.5f),  
+            glm::vec3( 1.5f,  2.0f, -2.5f), 
+            glm::vec3( 1.5f,  0.2f, -1.5f), 
+            glm::vec3(-1.3f,  1.0f, -1.5f)  
+        };
+        for(GLuint i = 0; i < 10; i++)
+        {
+            glm::mat4 model;
+            model = glm::translate(model, cubePositions[i]);
+            GLfloat angle = 20.0f * i; 
+            model = glm::rotate(model, angle, glm::vec3(1.0f, 0.3f, 0.5f));
+            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        }
+        //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
         glBindVertexArray(0);
 
         // Swap buffers
         glfwSwapBuffers(window);
         glfwPollEvents();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
+        //std::this_thread::sleep_for(std::chrono::milliseconds(500));
     } 
 
     // Properly de-allocate all resources once they've outlived their purpose
