@@ -1,4 +1,11 @@
-#include "shader.h"
+#include "../common/shader.h"
+
+// Include GLEW. Always include it before gl.h and glfw.h, since it's a bit magic.
+#include <GL/glew.h>
+
+// Include GLFW
+#include <GLFW/glfw3.h>
+
 #include <thread>
 
 // One color for each vertex. They were generated randomly.

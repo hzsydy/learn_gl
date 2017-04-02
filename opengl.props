@@ -3,12 +3,12 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>G:\GitHub\glm-0.9.8.4;G:\GitHub\glfw-3.2.1.bin.WIN32\include;G:\GitHub\glew-2.0.0\include;C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>G:\GitHub\glew-2.0.0\lib\Release\Win32;G:\GitHub\glfw-3.2.1.bin.WIN32\lib-vc2012;$(LibraryPath)</LibraryPath>
+    <IncludePath>G:\GitHub\glm-0.9.8.4;G:\GitHub\glfw-3.2.1.bin.WIN32\include;G:\GitHub\glew-2.0.0\include;C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;F:\opencv\build\include;$(IncludePath)</IncludePath>
+    <LibraryPath>G:\GitHub\glew-2.0.0\lib\Release\Win32;G:\GitHub\glfw-3.2.1.bin.WIN32\lib-vc2012;F:\opencv\build\x86\vc11\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Link>
-      <AdditionalDependencies>OpenGL32.lib;glew32.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>OpenGL32.lib;glew32.lib;glfw3.lib;opencv_core2410.lib;opencv_highgui2410.lib;opencv_imgproc2410.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ClCompile>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>

@@ -11,15 +11,17 @@
 
 // Include GLEW. Always include it before gl.h and glfw.h, since it's a bit magic.
 #include <GL/glew.h>
-
-// Include GLFW
-#include <GLFW/glfw3.h>
-
 // Include GLM
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/transform.hpp>
-using namespace glm;
+
+//include OpenCV
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_path);
+
+GLuint LoadTexture2D(const char * texture_image_path);
 
 #endif

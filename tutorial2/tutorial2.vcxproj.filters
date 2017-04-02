@@ -15,24 +15,24 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="..\common\shader.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Shaders\SimpleFragmentShader.glsl">
-      <Filter>资源文件</Filter>
-    </None>
-    <None Include="Shaders\SimpleVertexShader.glsl">
-      <Filter>资源文件</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\common\shader.h">
       <Filter>头文件</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\common\shader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\TextureFragmentShader.glsl">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="Shaders\TextureVertexShader.glsl">
+      <Filter>资源文件</Filter>
+    </None>
   </ItemGroup>
 </Project>

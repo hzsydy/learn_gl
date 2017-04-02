@@ -11,10 +11,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{29BC8E02-901F-4DF5-8F7F-4684FCA1F298}</ProjectGuid>
+    <ProjectGuid>{5F0FF172-512D-4CA6-B117-747259D01803}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>tutorial1</RootNamespace>
-    <ProjectName>tutorial1-shader</ProjectName>
+    <RootNamespace>tutorial2</RootNamespace>
+    <ProjectName>tutorial2-texture</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -79,15 +79,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\common\shader.h" />
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="..\common\shader.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\SimpleFragmentShader.glsl" />
-    <None Include="Shaders\SimpleVertexShader.glsl" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\common\shader.h" />
+    <None Include="Shaders\TextureFragmentShader.glsl" />
+    <None Include="Shaders\TextureVertexShader.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
