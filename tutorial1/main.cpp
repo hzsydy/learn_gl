@@ -89,6 +89,13 @@ float gen_random_float(float min=0.0f, float max=1.0f)
     return dist(rng);
 }
 
+// Is called whenever a key is pressed/released via GLFW
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode)
+{
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GL_TRUE);
+}
+
 int main()
 {
     // Initialise GLFW
@@ -113,11 +120,20 @@ int main()
         return -1;
     }
     glfwMakeContextCurrent(window); // Initialize GLEW
+
+    // Set the required callback functions
+    glfwSetKeyCallback(window, key_callback);
+
     glewExperimental = true; // Needed in core profile
     if (glewInit() != GLEW_OK) {
         fprintf(stderr, "Failed to initialize GLEW\n");
         return -1;
     }
+
+    // Define the viewport dimensions
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);  
+    glViewport(0, 0, width, height);
 
     // Ensure we can capture the escape key being pressed below
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
@@ -127,22 +143,55 @@ int main()
     // Accept fragment if it closer to the camera than the former one
     glDepthFunc(GL_LESS);
 
+
+    // Create and compile our GLSL program from the shaders
+    GLuint shaderProgram = LoadShaders("./shaders/SimpleVertexShader.glsl", "./shaders/SimpleFragmentShader.glsl");
+
     //vao
-    GLuint VertexArrayID;
-    glGenVertexArrays(1, &VertexArrayID);
-    glBindVertexArray(VertexArrayID);
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
 
 
-    //buffers
-    GLuint vertexbuffer;
-    glGenBuffers(1, &vertexbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    //vbo
+    GLuint vbo;
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
-    GLuint colorbuffer;
-    glGenBuffers(1, &colorbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+    GLuint cbo;
+    glGenBuffers(1, &cbo);
+    glBindBuffer(GL_ARRAY_BUFFER, cbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
+
+    // 1rst attribute buffer : vertices
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glVertexAttribPointer(
+        0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
+        3,                  // size
+        GL_FLOAT,           // type
+        GL_FALSE,           // normalized?
+        0,                  // stride
+        (void*)0            // array buffer offset
+        );
+    // 2nd attribute buffer : colors
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, cbo);
+    glVertexAttribPointer(
+        1,                  // attribute. No particular reason for 1, but must match the layout in the shader.
+        3,                  // size
+        GL_FLOAT,           // type
+        GL_FALSE,           // normalized?
+        0,                  // stride
+        (void*)0            // array buffer offset
+        );
+
+    // Note that this is allowed, the call to glVertexAttribPointer registered VBO as the currently bound vertex buffer object so afterwards we can safely unbind
+    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+
+    // Unbind VAO (it's always a good thing to unbind any buffer/array to prevent strange bugs)
+    glBindVertexArray(0); 
 
     // Projection matrix : 45бу Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
     glm::mat4 Projection = glm::perspective(glm::radians(45.0f), (float)1024 / (float)768, 0.1f, 100.0f);
@@ -162,13 +211,28 @@ int main()
     // Our ModelViewProjection : multiplication of our 3 matrices
     glm::mat4 mvp = Projection * View * Model; // Remember, matrix multiplication is the other way around
 
-    // Create and compile our GLSL program from the shaders
-    GLuint programID = LoadShaders("SimpleVertexShader.vertexshader", "SimpleFragmentShader.fragmentshader");
+    while (!glfwWindowShouldClose(window))
+    {
+        // Check and call events
+        glfwPollEvents();
 
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Get a handle for our "MVP" uniform
+        // Only during the initialisation
+        GLuint MatrixID = glGetUniformLocation(shaderProgram, "MVP");
 
-    do {
+        // Send our transformation to the currently bound shader, in the "MVP" uniform
+        // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &mvp[0][0]);
 
+        // Use our shader
+        glUseProgram(shaderProgram);
+
+        // Draw the cube !
+        glBindVertexArray(vao);
+
+        glBindBuffer(GL_ARRAY_BUFFER, cbo);
         //randomly change color
         for (int v = 0; v < 12 * 3; v++) {
             g_color_buffer_data[3 * v + 0] = gen_random_float();
@@ -176,45 +240,10 @@ int main()
             g_color_buffer_data[3 * v + 2] = gen_random_float();
         }
         glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0); 
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // Use our shader
-        glUseProgram(programID);
-
-        // Get a handle for our "MVP" uniform
-        // Only during the initialisation
-        GLuint MatrixID = glGetUniformLocation(programID, "MVP");
-
-        // Send our transformation to the currently bound shader, in the "MVP" uniform
-        // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
-        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &mvp[0][0]);
-
-        // Draw triangle...
-        // 1rst attribute buffer : vertices
-        glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-        glVertexAttribPointer(
-            0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
-            3,                  // size
-            GL_FLOAT,           // type
-            GL_FALSE,           // normalized?
-            0,                  // stride
-            (void*)0            // array buffer offset
-            );
-        // 2nd attribute buffer : colors
-        glEnableVertexAttribArray(1);
-        glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
-        glVertexAttribPointer(
-            1,                  // attribute. No particular reason for 1, but must match the layout in the shader.
-            3,                  // size
-            GL_FLOAT,           // type
-            GL_FALSE,           // normalized?
-            0,                  // stride
-            (void*)0            // array buffer offset
-            );
-        // Draw the cube !
         glDrawArrays(GL_TRIANGLES, 0, 12 * 3); // 12*3 indices starting at 0 -> 12 triangles -> 6 squares
-        glDisableVertexAttribArray(0);
+        glBindVertexArray(0);
 
         // Swap buffers
         glfwSwapBuffers(window);
@@ -222,7 +251,13 @@ int main()
 
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-    } // Check if the ESC key was pressed or the window was closed
-    while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
-        glfwWindowShouldClose(window) == 0);
+    } 
+
+    // Properly de-allocate all resources once they've outlived their purpose
+    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &cbo);
+    // Terminate GLFW, clearing any resources allocated by GLFW.
+    glfwTerminate();
+    return 0;
 }
