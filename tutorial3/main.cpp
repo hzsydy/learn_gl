@@ -155,78 +155,104 @@ int main()
 
 
     GLfloat vertices[] = {
-        // Positions          // Colors           // Texture Coords
-        0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // Top Right
-        0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // Bottom Right
-        -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // Bottom Left
-        -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // Top Left 
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
     };
 
-    GLuint indices[] = {  // Note that we start from 0!
-        0, 1, 3, // First Triangle
-        1, 2, 3  // Second Triangle
-    };
+    // First, set the container's VAO (and VBO)
+    GLuint VBO, containerVAO;
+    glGenVertexArrays(1, &containerVAO);
+    glGenBuffers(1, &VBO);
 
-    //vao
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    //vbo
-    GLuint vbo;
-    GLuint ebo;
-    glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ebo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
+    glBindVertexArray(containerVAO);
+    // Position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(
-        0,                                 // attribute 0. No particular reason for 0, but must match the layout in the shader.
-        3,                                 // size
-        GL_FLOAT,                          // type
-        GL_FALSE,                          // normalized?
-        8 * sizeof(GLfloat),               // stride
-        (GLvoid*)0                         // array buffer offset
-        );
+    // Normal attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(
-        1,                  
-        3,                  
-        GL_FLOAT,           
-        GL_FALSE,           
-        8 * sizeof(GLfloat),
-        (GLvoid*)(3 * sizeof(GLfloat))           
-        );
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(
-        2,                  
-        2,                  
-        GL_FLOAT,           
-        GL_FALSE,           
-        8 * sizeof(GLfloat),
-        (GLvoid*)(6 * sizeof(GLfloat))            
-        );
+    glBindVertexArray(0);
 
-    // Note that this is allowed, the call to glVertexAttribPointer registered VBO as the currently bound vertex buffer object so afterwards we can safely unbind
-    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+    // Then, we set the light's VAO (VBO stays the same. After all, the vertices are the same for the light object (also a 3D cube))
+    GLuint lightVAO;
+    glGenVertexArrays(1, &lightVAO);
+    glBindVertexArray(lightVAO);
+    // We only need to bind to the VBO (to link it with glVertexAttribPointer), no need to fill it; the VBO's data already contains all we need.
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    // Set the vertex attributes (only position data for the lamp))
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0); // Note that we skip over the normal vectors
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
 
-    // Unbind VAO (it's always a good thing to unbind any buffer/array to prevent strange bugs)
-    glBindVertexArray(0); 
 
     // Create and compile our GLSL program from the shaders
-    GLuint shaderProgram = LoadShaders("./shaders/TextureVertexShader.glsl", "./shaders/TextureFragmentShader.glsl");
+    GLuint shaderProgram = LoadShaders("./shaders/MaterialVS.glsl", "./shaders/MaterialFS.glsl");
+    GLuint lightshaderProgram = LoadShaders("./shaders/LightVS.glsl", "./shaders/LightFS.glsl");
+
+
+    GLint modelLightLoc = glGetUniformLocation(lightshaderProgram, "model");
+    GLint viewLightLoc = glGetUniformLocation(lightshaderProgram, "view");
+    GLint projectionLightLoc = glGetUniformLocation(lightshaderProgram, "projection");
+
     GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
     GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
     GLint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
 
-    GLuint textureWall = LoadTexture2D("./wall.jpg");
-    GLuint textureBleed = LoadTexture2D("./bleed.png");
+    GLint viewPosLoc  = glGetUniformLocation(shaderProgram, "viewPos");
 
-    int c=0;
+    GLint matAmbientLoc  = glGetUniformLocation(shaderProgram, "material.ambient");
+    GLint matDiffuseLoc  = glGetUniformLocation(shaderProgram, "material.diffuse");
+    GLint matSpecularLoc = glGetUniformLocation(shaderProgram, "material.specular");
+    GLint matShineLoc    = glGetUniformLocation(shaderProgram, "material.shininess"); 
+
+    GLint lightPosLoc      = glGetUniformLocation(shaderProgram, "light.position");
+    GLint lightAmbientLoc  = glGetUniformLocation(shaderProgram, "light.ambient");
+    GLint lightDiffuseLoc  = glGetUniformLocation(shaderProgram, "light.diffuse");
+    GLint lightSpecularLoc = glGetUniformLocation(shaderProgram, "light.specular");
+    
+    glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -234,28 +260,54 @@ int main()
         glfwPollEvents();
         do_movement();  
 
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 
         glm::mat4 view;
         view = glm::lookAt(cameraPos, cameraPos + cameraFront, glm::vec3(0.0f, 1.0f, 0.0f));
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+        glm::mat4 model;
+        model = glm::translate(model, lightPos);
+        model = glm::scale(model, glm::vec3(0.2f));
 
         glm::mat4 projection;
         projection = glm::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.0f);
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-        // Use our shader
+        // Draw
+        // 先useprogram然后才能给uniform赋值
+
+        //light
+        glUseProgram(lightshaderProgram);
+
+        glUniformMatrix4fv(viewLightLoc, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(modelLightLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(projectionLightLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+        glBindVertexArray(lightVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindVertexArray(0);
+
+        //material
         glUseProgram(shaderProgram);
 
-        // Draw 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, textureWall);
-        glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, textureBleed);
-        glUniform1i(glGetUniformLocation(shaderProgram, "texture2"), 1);
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-        glBindVertexArray(vao);
+        glUniform3fv(lightPosLoc, 1, glm::value_ptr(lightPos));
+        glUniform3fv(viewPosLoc, 1, glm::value_ptr(cameraPos));
+
+        //material params. see http://devernay.free.fr/cours/opengl/materials.html for more.
+        //NOTICE: the params are real only when set all the light intensities to vec3(1.0f) 
+        glUniform3f(matAmbientLoc,  1.0f, 0.5f, 0.31f);
+        glUniform3f(matDiffuseLoc,  1.0f, 0.5f, 0.31f);
+        glUniform3f(matSpecularLoc, 0.5f, 0.5f, 0.5f);
+        glUniform1f(matShineLoc,    32.0f);
+
+        //light params
+        glUniform3f(lightAmbientLoc,  0.2f, 0.2f, 0.2f);
+        glUniform3f(lightDiffuseLoc,  0.5f, 0.5f, 0.5f); // Let's darken the light a bit to fit the scene
+        glUniform3f(lightSpecularLoc, 1.0f, 1.0f, 1.0f);  
 
         glm::vec3 cubePositions[] = {
             glm::vec3( 0.0f,  0.0f,  0.0f), 
@@ -269,18 +321,16 @@ int main()
             glm::vec3( 1.5f,  0.2f, -1.5f), 
             glm::vec3(-1.3f,  1.0f, -1.5f)  
         };
-        for(GLuint i = 0; i < 10; i++)
+
+        glBindVertexArray(containerVAO);
+        for(GLuint i = 1; i < 10; i++)
         {
-            glm::mat4 model;
-            model = glm::translate(model, cubePositions[i]);
+            model = glm::translate(cubePositions[i]);
             GLfloat angle = 20.0f * i; 
             model = glm::rotate(model, angle, glm::vec3(1.0f, 0.3f, 0.5f));
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
         }
-        //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
         glBindVertexArray(0);
 
         // Swap buffers
@@ -291,9 +341,9 @@ int main()
     } 
 
     // Properly de-allocate all resources once they've outlived their purpose
-    glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &vbo);
-    glDeleteBuffers(1, &ebo);
+    glDeleteVertexArrays(1, &containerVAO);
+    glDeleteVertexArrays(1, &lightVAO);
+    glDeleteBuffers(1, &VBO);
     // Terminate GLFW, clearing any resources allocated by GLFW.
     glfwTerminate();
     return 0;
