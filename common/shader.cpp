@@ -95,7 +95,7 @@ GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_pat
     return ProgramID;
 }
 
-GLuint LoadTexture2D(const char* texture_image_path)
+GLuint LoadTexture2D(cv::Mat &img)
 {
     GLuint texture;
     glGenTextures(1, &texture);
@@ -107,9 +107,15 @@ GLuint LoadTexture2D(const char* texture_image_path)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     // Load and generate the texture
-    cv::Mat image = cv::imread(texture_image_path);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, image.data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, img.cols, img.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, img.data);
     glGenerateMipmap(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, 0); 
     return texture;
+}
+
+GLuint LoadTexture2D(const char* texture_image_path)
+{
+    cv::Mat image = cv::imread(texture_image_path);
+    cv::cvtColor(image, image, CV_BGR2RGB);
+    return LoadTexture2D(image);
 }
