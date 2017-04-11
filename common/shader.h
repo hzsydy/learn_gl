@@ -27,4 +27,6 @@ GLuint LoadTexture2D(cv::Mat &img);
 
 GLuint LoadTexture2D(const char * texture_image_path);
 
+GLuint generateAttachmentTexture(GLboolean depth, GLboolean stencil, GLsizei screenWidth, GLsizei screenHeight);
+
 #endif
