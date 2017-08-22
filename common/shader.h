@@ -17,15 +17,16 @@
 #include <glm/gtx/transform.hpp>
 
 //include OpenCV
+#ifdef OPENCV_REQUIRED
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
-GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_path);
-
 GLuint LoadTexture2D(cv::Mat &img);
-
 GLuint LoadTexture2D(const char * texture_image_path);
+#endif
+
+GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_path, const char* geometry_file_path = nullptr);
+
 
 GLuint generateAttachmentTexture(GLboolean depth, GLboolean stencil, GLsizei screenWidth, GLsizei screenHeight);
 

@@ -1,10 +1,11 @@
 #include "shader.h"
 
-GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_path) {
+GLuint LoadShaders(const char* vertex_file_path, const char* fragment_file_path, const char* geometry_file_path) {
 
     // Create the shaders
     GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
     GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+    GLuint GeometryShaderID = glCreateShader(GL_GEOMETRY_SHADER);
 
     // Read the Vertex Shader code from the file
     std::string VertexShaderCode;
@@ -31,8 +32,26 @@ GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_pat
         FragmentShaderStream.close();
     }
 
+    // Read the Geometry Shader code from the file
+    std::string GeometryShaderCode;
+    if (geometry_file_path != nullptr)
+    {
+        std::ifstream GeometryShaderStream(geometry_file_path, std::ios::in);
+        if (GeometryShaderStream.is_open()) {
+            std::string Line = "";
+            while (getline(GeometryShaderStream, Line))
+                GeometryShaderCode += "\n" + Line;
+            GeometryShaderStream.close();
+        }
+    }
+
     GLint Result = GL_FALSE;
     int InfoLogLength;
+
+    //std::cerr<<"VertexShaderCode"<<std::endl;
+    //std::cerr<<VertexShaderCode<<std::endl;
+    //std::cerr<<"FragmentShaderCode"<<std::endl;
+    //std::cerr<<FragmentShaderCode<<std::endl;
 
 
     // Compile Vertex Shader
@@ -67,6 +86,24 @@ GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_pat
         printf("%s\n", &FragmentShaderErrorMessage[0]);
     }
 
+    // Compile Geometry Shader
+    // printf("Compiling shader : %s\n", geometry_file_path);
+    if (geometry_file_path != nullptr)
+    {
+        char const * GeometrySourcePointer = GeometryShaderCode.c_str();
+        glShaderSource(GeometryShaderID, 1, &GeometrySourcePointer, NULL);
+        glCompileShader(GeometryShaderID);
+
+        // Check Fragment Shader
+        glGetShaderiv(GeometryShaderID, GL_COMPILE_STATUS, &Result);
+        glGetShaderiv(GeometryShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+        if (InfoLogLength > 0) {
+            std::vector<char> GeometryShaderErrorMessage(InfoLogLength + 1);
+            glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &GeometryShaderErrorMessage[0]);
+            printf("%s\n", &GeometryShaderErrorMessage[0]);
+        }
+    }
+
 
 
     // Link the program
@@ -74,6 +111,10 @@ GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_pat
     GLuint ProgramID = glCreateProgram();
     glAttachShader(ProgramID, VertexShaderID);
     glAttachShader(ProgramID, FragmentShaderID);
+    if (geometry_file_path != nullptr)
+    {
+        glAttachShader(ProgramID, GeometryShaderID);
+    }
     glLinkProgram(ProgramID);
 
     // Check the program
@@ -95,6 +136,7 @@ GLuint LoadShaders(const char * vertex_file_path, const char * fragment_file_pat
     return ProgramID;
 }
 
+#ifdef OPENCV_REQUIRED
 GLuint LoadTexture2D(cv::Mat &img)
 {
     GLuint texture;
@@ -119,6 +161,7 @@ GLuint LoadTexture2D(const char* texture_image_path)
     cv::cvtColor(image, image, CV_BGR2RGB);
     return LoadTexture2D(image);
 }
+#endif
 
 // Generates a texture that is suited for attachments to a framebuffer
 GLuint generateAttachmentTexture(GLboolean depth, GLboolean stencil, GLsizei screenWidth, GLsizei screenHeight)

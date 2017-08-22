@@ -9,7 +9,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tutorial3-lighting", "tutor
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tutorial4-tex_mul_light", "tutorial4\tutorial4.vcxproj", "{EB1A1BD1-EA54-4BC0-9ECD-471E23618405}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tutorial5-transparency", "tutorial5\tutorial5.vcxproj", "{B5CBE569-3092-411A-AF69-2CAFD02D9064}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tutorial5-offline_rendering", "tutorial5\tutorial5.vcxproj", "{B5CBE569-3092-411A-AF69-2CAFD02D9064}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "depth_map", "depth_map\depth_map.vcxproj", "{255B82F5-0FF8-43FA-B40D-C8F413A3F49C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -37,6 +39,10 @@ Global
 		{B5CBE569-3092-411A-AF69-2CAFD02D9064}.Debug|Win32.Build.0 = Debug|Win32
 		{B5CBE569-3092-411A-AF69-2CAFD02D9064}.Release|Win32.ActiveCfg = Release|Win32
 		{B5CBE569-3092-411A-AF69-2CAFD02D9064}.Release|Win32.Build.0 = Release|Win32
+		{255B82F5-0FF8-43FA-B40D-C8F413A3F49C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{255B82F5-0FF8-43FA-B40D-C8F413A3F49C}.Debug|Win32.Build.0 = Debug|Win32
+		{255B82F5-0FF8-43FA-B40D-C8F413A3F49C}.Release|Win32.ActiveCfg = Release|Win32
+		{255B82F5-0FF8-43FA-B40D-C8F413A3F49C}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
