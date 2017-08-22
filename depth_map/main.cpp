@@ -8,6 +8,10 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 #include <thread>
 #include <fstream>
 #include <sstream>
@@ -44,7 +48,7 @@ int main()
 
     glfwWindowHint(GLFW_SAMPLES, 4); // 4x antialiasing
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL 
 
@@ -156,31 +160,47 @@ int main()
 
     glm::mat4 Projection, View;
     {
-        // see http://ksimek.github.io/2013/06/03/calibrated_cameras_in_opengl/
         float fx = 1396.52f;
         float fy = 1393.52f;
         float cx = 933.738f;
         float cy = 560.443f;
-        float projection_float[16] = {0.0f};
 		float w = (float)width;
 		float h = (float)height;
 
-        Projection = glm::make_mat4(projection_float);
-		Projection[0][0] = 2*fx/w;
-		Projection[0][2] = (w-2*cx)/w;
-		Projection[1][1] = 2*fy/h;
-		Projection[1][2] = (2*cy-h)/h;
-		Projection[2][2] = -(near+far)/(far-near);
-		Projection[2][3] = -2*near*far/(far-near);
-		Projection[3][2] = -1.0f;
+        float l = 0.0, r = 1.0*w, b = 1.0*h, t = 0.0;
+        float tx = -(r+l)/(r-l), ty = -(t+b)/(t-b), tz = -(far+near)/(far-near);
+        float ortho_float[16] = {2.0/(r-l), 0.0, 0.0, tx,
+            0.0, 2.0/(t-b), 0.0, ty,
+            0.0, 0.0, -2.0/(far-near), tz,
+            0.0, 0.0, 0.0, 1.0};
+        float Intrinsic_float[16] = {fx, 0, cx, 0.0,
+            0.0, fy, cy, 0.0,
+            0.0, 0.0, -(near+far), +near*far,
+            0.0, 0.0, 1.0 , 0.0};
+        glm::mat4 ortho = glm::make_mat4(ortho_float);
+        glm::mat4 Intrinsic = glm::make_mat4(Intrinsic_float);
+        
+        ortho = glm::transpose(ortho);
+        Intrinsic = glm::transpose(Intrinsic);
 
-		for(int i=0; i<4; i++){
-			for(int j=0; j<4; j++){
-				std::cout<<Projection[i][j]<<"\t";
-			}
-			std::cout<<std::endl;
-		}
+        Projection = ortho*Intrinsic;
 
+        //Projection = glm::make_mat4(projection_float);
+		//Projection[0][0] = 2*fx/w;
+		//Projection[0][2] = (w-2*cx)/w;
+		//Projection[1][1] = 2*fy/h;
+		//Projection[1][2] = (2*cy-h)/h;
+		//Projection[2][2] = -(near+far)/(far-near);
+		//Projection[2][3] = -2*near*far/(far-near);
+		//Projection[3][2] = -1.0f;
+
+		//for(int i=0; i<4; i++){
+		//	for(int j=0; j<4; j++){
+		//		std::cout<<Projection[i][j]<<"\t";
+		//	}
+		//	std::cout<<std::endl;
+		//}
+        //
 
         float RT_float[16] = {
             -0.9225427896f,-0.01123881405f, -0.3857311115f, -10.70728522f,
@@ -188,16 +208,17 @@ int main()
             0.3852186031f, 0.03232750985f, -0.9222589441f, 277.0709018f,
             0.0f, 0.0f, 0.0f, 1.0f
         };
-        glm::mat4 RT = glm::make_mat4(RT_float);
+        glm::mat4 RT = glm::transpose(glm::make_mat4(RT_float));
+        View = RT;
         //View = glm::inverse(RT);
-		View = glm::mat4(1.0f);
+		//View = glm::mat4(1.0f);
 
-		for(int i=0; i<4; i++){
-			for(int j=0; j<4; j++){
-				std::cout<<View[i][j]<<"\t";
-			}
-			std::cout<<std::endl;
-		}
+		//for(int i=0; i<4; i++){
+		//	for(int j=0; j<4; j++){
+		//		std::cout<<View[i][j]<<"\t";
+		//	}
+		//	std::cout<<std::endl;
+		//}
     }
 
     // Projection matrix : 45бу Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
@@ -237,7 +258,7 @@ int main()
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &mvp[0][0]);
         glUniform1f(nearID, near);
         glUniform1f(farID, far);
-        glUniform1f(patchsizeID, 10.0f);
+        glUniform1f(patchsizeID, 1.0f);
 
         // Use our shader
         glUseProgram(shaderProgram);
@@ -247,7 +268,15 @@ int main()
 
         //glDrawArrays(GL_TRIANGLES, 0, 12 * 3); 
         glDrawArrays(GL_POINTS, 0, g_vertex_buffer_data.size()/3); 
+
         glBindVertexArray(0);
+
+        cv::Mat screen(height, width, CV_32FC3);
+        glReadPixels(0, 0, width, height, GL_BGR, GL_FLOAT, screen.data);
+        cv::resize(screen, screen, cv::Size(), 0.25, 0.25);
+        cv::imshow("", screen);
+        cv::waitKey(1);
+
 
         // Swap buffers
         glfwSwapBuffers(window);
