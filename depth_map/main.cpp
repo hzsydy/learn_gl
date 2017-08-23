@@ -9,6 +9,8 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <json/json.h>
+
 #include <thread>
 #include <fstream>
 #include <sstream>
@@ -36,11 +38,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 int main(int argc, char** argv)
 {
-	if (argc != 3)
+	if (argc != 6)
 	{
-		std::cout<<"usage: depth_map *.ply *.depth";
+		std::cout<<"usage: depth_map *.ply *.depth calib.json 0 5";
 		exit(-1);
 	}
+	const char* calib_file = argv[3];
+	int panel_number = std::atoi(argv[4]);
+	int camera_number = std::atoi(argv[5]);
+	char camera_name[256] = {};
+	sprintf(camera_name, "%02d_%02d", panel_number, camera_number);
 
     // Initialise GLFW
     if (!glfwInit())
@@ -225,10 +232,53 @@ int main(int argc, char** argv)
 
     glm::mat4 Projection, View;
     {
-        float fx = 1396.52f;
-        float fy = 1393.52f;
-        float cx = 933.738f;
-        float cy = 560.443f;
+		Json::Value root;
+		Json::Reader reader;
+
+		std::ifstream file(calib_file, std::ifstream::binary);
+		if(!reader.parse(file, root, true)){
+			std::cout  << "Failed to parse configuration\n"
+					   << reader.getFormattedErrorMessages();
+		}
+
+		const Json::Value cameras = root["cameras"];
+		Json::Value camera;
+		for (int i = 0; i < cameras.size(); i++)
+		{
+			if (cameras[i]["name"].asString() == camera_name)
+			{
+				camera = cameras[i];
+				break;
+			}
+		}
+		float fx = camera["K"][0][0].asFloat();
+		float fy = camera["K"][1][1].asFloat();
+		float cx = camera["K"][0][2].asFloat();
+		float cy = camera["K"][1][2].asFloat();
+		float RT_float[16] = {0.0f};
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				RT_float[i*4+j] = camera["R"][i][j].asFloat();
+			}
+			RT_float[i*4+3] = camera["t"][i][0].asFloat();
+		}
+		RT_float[15] = 1.0f;
+		
+
+        //float fx = 1396.52f;
+        //float fy = 1393.52f;
+        //float cx = 933.738f;
+        //float cy = 560.443f;
+		//
+        //float RT_float[16] = {
+        //    -0.9225427896f,-0.01123881405f, -0.3857311115f, -10.70728522f,
+        //    -0.02283482308f, 0.999414139f, 0.02549411087f, 143.7188498f,
+        //    0.3852186031f, 0.03232750985f, -0.9222589441f, 277.0709018f,
+        //    0.0f, 0.0f, 0.0f, 1.0f
+        //};
+
 		float w = (float)width;
 		float h = (float)height;
 
@@ -250,17 +300,8 @@ int main(int argc, char** argv)
 
         Projection = ortho*Intrinsic;
 
-        float RT_float[16] = {
-            -0.9225427896f,-0.01123881405f, -0.3857311115f, -10.70728522f,
-            -0.02283482308f, 0.999414139f, 0.02549411087f, 143.7188498f,
-            0.3852186031f, 0.03232750985f, -0.9222589441f, 277.0709018f,
-            0.0f, 0.0f, 0.0f, 1.0f
-        };
         glm::mat4 RT = glm::transpose(glm::make_mat4(RT_float));
         View = RT;
-        //View = glm::inverse(RT);
-		//View = glm::mat4(1.0f);
-
     }
 
     // Model matrix : an identity matrix (model will be at the origin)
@@ -276,10 +317,6 @@ int main(int argc, char** argv)
     {
         // Check and call events
         glfwPollEvents();
-	
-
-		//glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-		//glViewport(0,0,width,height); // Render on the whole framebuffer, complete from the lower left corner to the upper right
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -303,19 +340,6 @@ int main(int argc, char** argv)
         glBindVertexArray(vao);
         glDrawArrays(GL_POINTS, 0, g_vertex_buffer_data.size()); 
         glBindVertexArray(0);
-		//{
-		//	FILE *pFile;
-		//	if( (pFile = fopen(argv[2], "wb")) == NULL)
-		//	{
-		//		printf("gg\n");
-		//		exit(1);
-		//	}
-		//	fwrite(rgbChannels[0].data, sizeof(float), height*width, pFile);
-		//	fclose(pFile);
-		//}
-		
-		//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		
 
         // Swap buffers
         glfwSwapBuffers(window);
@@ -329,11 +353,9 @@ int main(int argc, char** argv)
 	cv::split(screen, rgbChannels);
 	cv::Mat save_img;
 	rgbChannels[0].convertTo(save_img, CV_16UC1, 10000.0);
-	//cv::imwrite("fuck.png", save_img);
-	//rgbChannels[0].convertTo(save_img, CV_8UC1, 1000.0);
 	cv::imshow("", save_img);
 	cv::waitKey(1);
-	cv::imwrite("fuck.png",save_img);
+	cv::imwrite(argv[2],save_img);
 
     // Properly de-allocate all resources once they've outlived their purpose
     glDeleteVertexArrays(1, &vao);
