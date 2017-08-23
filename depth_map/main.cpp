@@ -1,3 +1,4 @@
+#define OPENCV_REQUIRED
 #include "../common/shader.h"
 
 // Include GLEW. Always include it before gl.h and glfw.h, since it's a bit magic.
@@ -7,10 +8,6 @@
 #include <GLFW/glfw3.h>
 
 #include <glm/gtc/type_ptr.hpp>
-
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
 
 #include <thread>
 #include <fstream>
@@ -37,13 +34,19 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
-int main()
+int main(int argc, char** argv)
 {
+	if (argc != 3)
+	{
+		std::cout<<"usage: depth_map *.ply *.depth";
+		exit(-1);
+	}
+
     // Initialise GLFW
     if (!glfwInit())
     {
         fprintf(stderr, "Failed to initialize GLFW\n");
-        return -1;
+		exit(-1);
     }
 
     glfwWindowHint(GLFW_SAMPLES, 4); // 4x antialiasing
@@ -56,7 +59,7 @@ int main()
     int width=1920;
     int height=1080;
     GLfloat near = 0.1f;
-    GLfloat far = 300.0f;
+    GLfloat far = 1000.0f;
 
     // Open a window and create its OpenGL context
     GLFWwindow* window; // (In the accompanying source code, this variable is global)
@@ -93,7 +96,7 @@ int main()
     //read ply
     {
         FILE *pFile;
-        if( (pFile = fopen("./frame00003150.ply", "r+")) == NULL)
+        if( (pFile = fopen(argv[1], "r+")) == NULL)
         {
             printf("No such file\n");
             exit(1);
@@ -123,6 +126,21 @@ int main()
         }
         fclose(pFile);
     }
+
+	//{
+    //    FILE *pFile;
+	//	if( (pFile = fopen("./frame00003150.xyz", "w")) == NULL)
+    //    {
+    //        printf("gg\n");
+    //        exit(1);
+    //    }
+	//	for (int i = 0; i < g_vertex_buffer_data.size()/3; i++)
+	//	{
+	//		fprintf(pFile, "%f %f %f\n", g_vertex_buffer_data[3*i], g_vertex_buffer_data[3*i+1], g_vertex_buffer_data[3*i+2]);
+	//
+	//	}
+    //    fclose(pFile);
+	//}
 
 
     // Create and compile our GLSL program from the shaders
@@ -158,6 +176,53 @@ int main()
     // Unbind VAO (it's always a good thing to unbind any buffer/array to prevent strange bugs)
     glBindVertexArray(0); 
 
+
+	//////THE OFFLINE RENDERING
+	// create a texture object
+	GLuint textureId;
+	glGenTextures(1, &textureId);
+	glBindTexture(GL_TEXTURE_2D, textureId);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE); // automatic mipmap
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0,
+				 GL_RGBA, GL_FLOAT, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	// create a renderbuffer object to store depth info
+	GLuint rbo;
+	glGenRenderbuffers(1, &rbo);
+	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT,
+						   width, height);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	// create a framebuffer object
+	GLuint fbo;
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+	// attach the texture to FBO color attachment point
+	glFramebufferTexture2D(GL_FRAMEBUFFER,        // 1. fbo target: GL_FRAMEBUFFER 
+						   GL_COLOR_ATTACHMENT0,  // 2. attachment point
+						   GL_TEXTURE_2D,         // 3. tex target: GL_TEXTURE_2D
+						   textureId,             // 4. tex ID
+						   0);                    // 5. mipmap level: 0(base)
+
+	// attach the renderbuffer to depth attachment point
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER,      // 1. fbo target: GL_FRAMEBUFFER
+							  GL_DEPTH_ATTACHMENT, // 2. attachment point
+							  GL_RENDERBUFFER,     // 3. rbo target: GL_RENDERBUFFER
+							  rbo);              // 4. rbo ID
+
+	// check FBO status
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if(status != GL_FRAMEBUFFER_COMPLETE)
+		return -1;
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     glm::mat4 Projection, View;
     {
         float fx = 1396.52f;
@@ -185,23 +250,6 @@ int main()
 
         Projection = ortho*Intrinsic;
 
-        //Projection = glm::make_mat4(projection_float);
-		//Projection[0][0] = 2*fx/w;
-		//Projection[0][2] = (w-2*cx)/w;
-		//Projection[1][1] = 2*fy/h;
-		//Projection[1][2] = (2*cy-h)/h;
-		//Projection[2][2] = -(near+far)/(far-near);
-		//Projection[2][3] = -2*near*far/(far-near);
-		//Projection[3][2] = -1.0f;
-
-		//for(int i=0; i<4; i++){
-		//	for(int j=0; j<4; j++){
-		//		std::cout<<Projection[i][j]<<"\t";
-		//	}
-		//	std::cout<<std::endl;
-		//}
-        //
-
         float RT_float[16] = {
             -0.9225427896f,-0.01123881405f, -0.3857311115f, -10.70728522f,
             -0.02283482308f, 0.999414139f, 0.02549411087f, 143.7188498f,
@@ -213,36 +261,25 @@ int main()
         //View = glm::inverse(RT);
 		//View = glm::mat4(1.0f);
 
-		//for(int i=0; i<4; i++){
-		//	for(int j=0; j<4; j++){
-		//		std::cout<<View[i][j]<<"\t";
-		//	}
-		//	std::cout<<std::endl;
-		//}
     }
-
-    // Projection matrix : 45бу Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-    // Projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, near, far);
-    // 
-    // // Camera matrix
-    // View = glm::lookAt(
-    //     glm::vec3(2, 2, 2), // Camera is at (4,3,3), in World Space
-    //     glm::vec3(0, 0, 0), // and looks at the origin
-    //     glm::vec3(0, 1, 0)  // Head is up (set to 0,-1,0 to look upside-down)
-    //     );
 
     // Model matrix : an identity matrix (model will be at the origin)
     glm::mat4 Model = glm::mat4(1.0f);
     // Our ModelViewProjection : multiplication of our 3 matrices
     glm::mat4 mvp = Projection * View * Model; // Remember, matrix multiplication is the other way around
 	
-
+	
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo);
 
     
-    while (!glfwWindowShouldClose(window))
+    for (int i=0; i<3; i++)
     {
         // Check and call events
         glfwPollEvents();
+	
+
+		//glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+		//glViewport(0,0,width,height); // Render on the whole framebuffer, complete from the lower left corner to the upper right
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -258,33 +295,45 @@ int main()
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &mvp[0][0]);
         glUniform1f(nearID, near);
         glUniform1f(farID, far);
-        glUniform1f(patchsizeID, 1.0f);
+        glUniform1f(patchsizeID, 0.8f);
 
         // Use our shader
         glUseProgram(shaderProgram);
 
-        // Draw the cube !
         glBindVertexArray(vao);
-
-        //glDrawArrays(GL_TRIANGLES, 0, 12 * 3); 
-        glDrawArrays(GL_POINTS, 0, g_vertex_buffer_data.size()/3); 
-
+        glDrawArrays(GL_POINTS, 0, g_vertex_buffer_data.size()); 
         glBindVertexArray(0);
-
-        cv::Mat screen(height, width, CV_32FC3);
-        glReadPixels(0, 0, width, height, GL_BGR, GL_FLOAT, screen.data);
-        cv::resize(screen, screen, cv::Size(), 0.25, 0.25);
-        cv::imshow("", screen);
-        cv::waitKey(1);
-
+		//{
+		//	FILE *pFile;
+		//	if( (pFile = fopen(argv[2], "wb")) == NULL)
+		//	{
+		//		printf("gg\n");
+		//		exit(1);
+		//	}
+		//	fwrite(rgbChannels[0].data, sizeof(float), height*width, pFile);
+		//	fclose(pFile);
+		//}
+		
+		//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		
 
         // Swap buffers
         glfwSwapBuffers(window);
         glfwPollEvents();
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    } 
+	}
+     
+	cv::Mat screen(height, width, CV_32FC3);
+	glReadPixels(0, 0, width, height, GL_BGR_EXT, GL_FLOAT, screen.data);
+	cv::flip(screen, screen, 0);
+	std::vector<cv::Mat> rgbChannels(3);
+	cv::split(screen, rgbChannels);
+	cv::Mat save_img;
+	rgbChannels[0].convertTo(save_img, CV_16UC1, 10000.0);
+	//cv::imwrite("fuck.png", save_img);
+	//rgbChannels[0].convertTo(save_img, CV_8UC1, 1000.0);
+	cv::imshow("", save_img);
+	cv::waitKey(1);
+	cv::imwrite("fuck.png",save_img);
 
     // Properly de-allocate all resources once they've outlived their purpose
     glDeleteVertexArrays(1, &vao);

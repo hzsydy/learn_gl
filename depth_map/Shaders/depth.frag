@@ -4,11 +4,11 @@ in vec4 vpos;
 uniform float near;
 uniform float far;
 
-out vec3 color;
+layout(location = 0) out vec3 color;
 
 void main(){
 	//color = vec3(gl_FragCoord.z);
-	//color = vec3(vpos.z);
+	color = vec3(vpos.z/1000.0);
 
-	color = vec3(1.0f);
+	//color = vec3(1.0f);
 }
