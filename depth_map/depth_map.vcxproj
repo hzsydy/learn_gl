@@ -78,6 +78,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\3rdparty\rply-1.1.4\rply.c" />
     <ClCompile Include="..\common\shader.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>

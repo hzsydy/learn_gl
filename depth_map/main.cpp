@@ -11,14 +11,13 @@
 
 #include <json/json.h>
 
+#include "../3rdparty/rply-1.1.4/rply.h"
+
 #include <thread>
 #include <fstream>
 #include <sstream>
 #include <iterator>
 #include <algorithm>
-
-//static GLfloat g_vertex_buffer_data[] = {};
-std::vector<GLfloat> g_vertex_buffer_data;
 
 std::random_device rd;
 std::mt19937 rng(rd());
@@ -34,6 +33,28 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
+}
+
+std::vector<GLfloat> g_vertex_buffer_data;
+float ply_buf[3];
+int ply_buf_c=0;
+
+static int vertex_cb(p_ply_argument argument) {
+    long eol;
+    ply_get_argument_user_data(argument, NULL, &eol);
+    //printf("%g", ply_get_argument_value(argument));
+	ply_buf[ply_buf_c] = (float)ply_get_argument_value(argument);
+	ply_buf_c++;
+	if (ply_buf_c==3) {
+		ply_buf_c = 0;
+		if (ply_buf[1]<-5.0 && (ply_buf[0]*ply_buf[0]+ply_buf[2]*ply_buf[2])<45000)
+		{
+			g_vertex_buffer_data.push_back(ply_buf[0]);
+			g_vertex_buffer_data.push_back(ply_buf[1]);
+			g_vertex_buffer_data.push_back(ply_buf[2]);
+		}
+	}
+    return 1;
 }
 
 int main(int argc, char** argv)
@@ -101,38 +122,52 @@ int main(int argc, char** argv)
 
 
     //read ply
-    {
-        FILE *pFile;
-        if( (pFile = fopen(argv[1], "r+")) == NULL)
-        {
-            printf("No such file\n");
-            exit(1);
-        }
-        char line[256];
-        int num_vertex;
-        float x,y,z;
+    //{
+    //    FILE *pFile;
+    //    if( (pFile = fopen(argv[1], "r+")) == NULL)
+    //    {
+    //        printf("No such file\n");
+    //        exit(1);
+    //    }
+    //    char line[256];
+    //    int num_vertex;
+    //    float x,y,z;
+    //
+    //    fgets(line, sizeof(line), pFile);
+    //    fgets(line, sizeof(line), pFile);
+    //    fgets(line, sizeof(line), pFile);
+    //    fgets(line, sizeof(line), pFile);
+    //    fscanf(pFile, "element vertex %d\n", &num_vertex);
+    //    for (int i=0; i<9; i++)
+    //    {
+    //        fgets(line, sizeof(line), pFile);
+    //    }
+    //    for (int i=0; i<num_vertex; i++)
+    //    {
+    //        fscanf(pFile, "%f %f %f\n", &x, &y, &z);
+    //        if (y<-5.0)
+    //        {
+    //            g_vertex_buffer_data.push_back(x);
+    //            g_vertex_buffer_data.push_back(y);
+    //            g_vertex_buffer_data.push_back(z);
+    //        }
+    //    }
+    //    fclose(pFile);
+    //}
 
-        fgets(line, sizeof(line), pFile);
-        fgets(line, sizeof(line), pFile);
-        fgets(line, sizeof(line), pFile);
-        fgets(line, sizeof(line), pFile);
-        fscanf(pFile, "element vertex %d\n", &num_vertex);
-        for (int i=0; i<9; i++)
-        {
-            fgets(line, sizeof(line), pFile);
-        }
-        for (int i=0; i<num_vertex; i++)
-        {
-            fscanf(pFile, "%f %f %f\n", &x, &y, &z);
-            if (y<-5.0)
-            {
-                g_vertex_buffer_data.push_back(x);
-                g_vertex_buffer_data.push_back(y);
-                g_vertex_buffer_data.push_back(z);
-            }
-        }
-        fclose(pFile);
-    }
+	{
+		long nvertices, ntriangles;
+		p_ply ply = ply_open(argv[1], NULL, 0, NULL);
+		if (!ply) return 1;
+		if (!ply_read_header(ply)) return 1;
+		nvertices = ply_set_read_cb(ply, "vertex", "x", vertex_cb, NULL, 0);
+		ply_set_read_cb(ply, "vertex", "y", vertex_cb, NULL, 0);
+		ply_set_read_cb(ply, "vertex", "z", vertex_cb, NULL, 1);
+		ntriangles = ply_set_read_cb(ply, "face", "vertex_indices", NULL, NULL, 0);
+		//printf("%ld\n%ld\n", nvertices, ntriangles);
+		if (!ply_read(ply)) return 1;
+		ply_close(ply);
+	}
 
 	//{
     //    FILE *pFile;
