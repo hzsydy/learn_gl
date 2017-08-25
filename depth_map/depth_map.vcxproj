@@ -89,6 +89,8 @@
     <None Include="Shaders\depth.frag" />
     <None Include="Shaders\depth.geo" />
     <None Include="Shaders\depth.vert" />
+    <None Include="Shaders\depth_nopatch.geo" />
+    <None Include="Shaders\depth_nopatch.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

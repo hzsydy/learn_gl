@@ -40,5 +40,11 @@
     <None Include="Shaders\depth.vert">
       <Filter>资源文件</Filter>
     </None>
+    <None Include="Shaders\depth_nopatch.vert">
+      <Filter>资源文件</Filter>
+    </None>
+    <None Include="Shaders\depth_nopatch.geo">
+      <Filter>资源文件</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -176,9 +176,9 @@ GLuint generateAttachmentTexture(GLboolean depth, GLboolean stencil, GLsizei scr
         attachment_type = GL_STENCIL_INDEX;
 
     //Generate texture ID and load texture data 
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_2D, textureID);
+    GLuint tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
     if(!depth && !stencil)
         glTexImage2D(GL_TEXTURE_2D, 0, attachment_type, screenWidth, screenHeight, 0, attachment_type, GL_UNSIGNED_BYTE, NULL);
     else // Using both a stencil and depth test, needs special format arguments
@@ -187,5 +187,5 @@ GLuint generateAttachmentTexture(GLboolean depth, GLboolean stencil, GLsizei scr
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    return textureID;
+    return tex;
 }
