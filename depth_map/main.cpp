@@ -59,34 +59,153 @@ static int vertex_cb(p_ply_argument argument) {
     return 1;
 }
 
+int read_ply(const char* ply_filename)
+{
+    g_vertex_buffer_data.clear();
+    long nvertices, ntriangles;
+    p_ply ply = ply_open(ply_filename, NULL, 0, NULL);
+    if (!ply) return -1;
+    if (!ply_read_header(ply)) return -1;
+    nvertices = ply_set_read_cb(ply, "vertex", "x", vertex_cb, NULL, 0);
+    ply_set_read_cb(ply, "vertex", "y", vertex_cb, NULL, 0);
+    ply_set_read_cb(ply, "vertex", "z", vertex_cb, NULL, 1);
+    ntriangles = ply_set_read_cb(ply, "face", "vertex_indices", NULL, NULL, 0);
+    //printf("%ld\n%ld\n", nvertices, ntriangles);
+    if (!ply_read(ply)) return -1;
+    ply_close(ply);
+    return 0;
+}
+
+glm::mat4 getMVP(const char* calib_filename, int panelIdx, int cameraIdx, int width, int height)
+{
+    GLfloat near = 0.1f;
+    GLfloat far = 1000.0f;
+    char camera_name[256] = {};
+    sprintf(camera_name, "%02d_%02d", panelIdx, cameraIdx);
+    glm::mat4 Projection, View;
+    {
+        Json::Value root;
+        Json::Reader reader;
+
+        std::ifstream file(calib_filename, std::ifstream::binary);
+        if(!reader.parse(file, root, true)){
+            std::cout  << "Failed to parse configuration\n"
+                << reader.getFormattedErrorMessages();
+        }
+
+        const Json::Value cameras = root["cameras"];
+        Json::Value camera;
+        for (int i = 0; i < cameras.size(); i++)
+        {
+            if (cameras[i]["name"].asString() == camera_name)
+            {
+                camera = cameras[i];
+                break;
+            }
+        }
+        float fx = camera["K"][0][0].asFloat()*scale;
+        float fy = camera["K"][1][1].asFloat()*scale;
+        float cx = camera["K"][0][2].asFloat()*scale;
+        float cy = camera["K"][1][2].asFloat()*scale;
+        float RT_float[16] = {0.0f};
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                RT_float[i*4+j] = camera["R"][i][j].asFloat();
+            }
+            RT_float[i*4+3] = camera["t"][i][0].asFloat();
+        }
+        RT_float[15] = 1.0f;
+
+
+        //float fx = 1396.52f;
+        //float fy = 1393.52f;
+        //float cx = 933.738f;
+        //float cy = 560.443f;
+        //
+        //float RT_float[16] = {
+        //    -0.9225427896f,-0.01123881405f, -0.3857311115f, -10.70728522f,
+        //    -0.02283482308f, 0.999414139f, 0.02549411087f, 143.7188498f,
+        //    0.3852186031f, 0.03232750985f, -0.9222589441f, 277.0709018f,
+        //    0.0f, 0.0f, 0.0f, 1.0f
+        //};
+
+        float w = (float)width;
+        float h = (float)height;
+
+        float l = 0.0, r = 1.0*w, b = 1.0*h, t = 0.0;
+        float tx = -(r+l)/(r-l), ty = -(t+b)/(t-b), tz = -(far+near)/(far-near);
+        float ortho_float[16] = {2.0/(r-l), 0.0, 0.0, tx,
+            0.0, 2.0/(t-b), 0.0, ty,
+            0.0, 0.0, -2.0/(far-near), tz,
+            0.0, 0.0, 0.0, 1.0};
+        float Intrinsic_float[16] = {fx, 0, cx, 0.0,
+            0.0, fy, cy, 0.0,
+            0.0, 0.0, -(near+far), +near*far,
+            0.0, 0.0, 1.0 , 0.0};
+        glm::mat4 ortho = glm::make_mat4(ortho_float);
+        glm::mat4 Intrinsic = glm::make_mat4(Intrinsic_float);
+
+        ortho = glm::transpose(ortho);
+        Intrinsic = glm::transpose(Intrinsic);
+
+        Projection = ortho*Intrinsic;
+
+        glm::mat4 RT = glm::transpose(glm::make_mat4(RT_float));
+        View = RT;
+    }
+
+    // Model matrix : an identity matrix (model will be at the origin)
+    glm::mat4 Model = glm::mat4(1.0f);
+    // Our ModelViewProjection : multiplication of our 3 matrices
+    glm::mat4 mvp = Projection * View * Model; // Remember, matrix multiplication is the other way around
+    return mvp;
+}
+
+struct cmd
+{
+    std::string ply_name;
+    std::string png_name;
+    std::string calib_file;
+    int panel_number;
+    int camera_number;
+};
+
 int main(int argc, char** argv)
 {
-    if (argc != 6)
+    std::vector<cmd> commands;
+    if (argc == 6)
     {
-        std::cout<<"usage: depth_map *.ply *.depth calib.json 0 5";
+        cmd c;
+        c.ply_name = argv[1];
+        c.png_name = argv[2];
+        c.calib_file = argv[3];
+        c.panel_number = std::atoi(argv[4]);
+        c.camera_number = std::atoi(argv[5]);
+        commands.push_back(c);
+    }
+    else if (argc == 2)
+    {
+        const char* list_fn = argv[1];
+        FILE* pFile = fopen(list_fn,"r");
+        char plyn[256], pngn[256], calibn[256];
+        cmd c;
+        while (fscanf(pFile, "%s %s %s %d %d\n", plyn, pngn, calibn, &c.panel_number, &c.camera_number) != EOF)
+        {
+            c.ply_name = std::string(plyn);
+            c.png_name = std::string(pngn);
+            c.calib_file = std::string(calibn);
+            commands.push_back(c);
+        }
+        fclose(pFile);
+    }
+    else
+    {
+        std::cout<<"usage: depth_map *.ply *.png calib.json 0 5\n";
+        std::cout<<"usage: depth_map list.txt\n";
         exit(-1);
     }
-    const char* calib_file = argv[3];
-    int panel_number = std::atoi(argv[4]);
-    int camera_number = std::atoi(argv[5]);
-    char camera_name[256] = {};
-    sprintf(camera_name, "%02d_%02d", panel_number, camera_number);
-
-    //read plys
-    {
-        long nvertices, ntriangles;
-        p_ply ply = ply_open(argv[1], NULL, 0, NULL);
-        if (!ply) return 1;
-        if (!ply_read_header(ply)) return 1;
-        nvertices = ply_set_read_cb(ply, "vertex", "x", vertex_cb, NULL, 0);
-        ply_set_read_cb(ply, "vertex", "y", vertex_cb, NULL, 0);
-        ply_set_read_cb(ply, "vertex", "z", vertex_cb, NULL, 1);
-        ntriangles = ply_set_read_cb(ply, "face", "vertex_indices", NULL, NULL, 0);
-        //printf("%ld\n%ld\n", nvertices, ntriangles);
-        if (!ply_read(ply)) return 1;
-        ply_close(ply);
-    }
-
 
     // Initialise GLFW
     if (!glfwInit())
@@ -104,8 +223,6 @@ int main(int argc, char** argv)
 
     int width=(int)(1920*scale);
     int height=(int)(1080*scale);
-    GLfloat near = 0.1f;
-    GLfloat far = 1000.0f;
 
     // Open a window and create its OpenGL context
     GLFWwindow* window; // (In the accompanying source code, this variable is global)
@@ -113,7 +230,7 @@ int main(int argc, char** argv)
     if (window == NULL) {
         fprintf(stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n");
         glfwTerminate();
-        return -1;
+        exit(-1);
     }
     glfwMakeContextCurrent(window); // Initialize GLEW
 
@@ -123,7 +240,7 @@ int main(int argc, char** argv)
     glewExperimental = true; // Needed in core profile
     if (glewInit() != GLEW_OK) {
         fprintf(stderr, "Failed to initialize GLEW\n");
-        return -1;
+        exit(-1);
     }
 
 
@@ -139,12 +256,12 @@ int main(int argc, char** argv)
     //vao
     GLuint vao;
     glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
 
     //vbo
     GLuint vbo;
     glGenBuffers(1, &vbo);
+
+    glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*g_vertex_buffer_data.size(), &(g_vertex_buffer_data[0]), GL_STATIC_DRAW);
 
@@ -220,134 +337,68 @@ int main(int argc, char** argv)
     // Define the viewport dimensions
     glViewport(0, 0, width, height);
 
-    glm::mat4 Projection, View;
-    {
-        Json::Value root;
-        Json::Reader reader;
-
-        std::ifstream file(calib_file, std::ifstream::binary);
-        if(!reader.parse(file, root, true)){
-            std::cout  << "Failed to parse configuration\n"
-                << reader.getFormattedErrorMessages();
-        }
-
-        const Json::Value cameras = root["cameras"];
-        Json::Value camera;
-        for (int i = 0; i < cameras.size(); i++)
-        {
-            if (cameras[i]["name"].asString() == camera_name)
-            {
-                camera = cameras[i];
-                break;
-            }
-        }
-        float fx = camera["K"][0][0].asFloat()*scale;
-        float fy = camera["K"][1][1].asFloat()*scale;
-        float cx = camera["K"][0][2].asFloat()*scale;
-        float cy = camera["K"][1][2].asFloat()*scale;
-        float RT_float[16] = {0.0f};
-        for (int i = 0; i < 3; i++)
-        {
-            for (int j = 0; j < 3; j++)
-            {
-                RT_float[i*4+j] = camera["R"][i][j].asFloat();
-            }
-            RT_float[i*4+3] = camera["t"][i][0].asFloat();
-        }
-        RT_float[15] = 1.0f;
-
-
-        //float fx = 1396.52f;
-        //float fy = 1393.52f;
-        //float cx = 933.738f;
-        //float cy = 560.443f;
-        //
-        //float RT_float[16] = {
-        //    -0.9225427896f,-0.01123881405f, -0.3857311115f, -10.70728522f,
-        //    -0.02283482308f, 0.999414139f, 0.02549411087f, 143.7188498f,
-        //    0.3852186031f, 0.03232750985f, -0.9222589441f, 277.0709018f,
-        //    0.0f, 0.0f, 0.0f, 1.0f
-        //};
-
-        float w = (float)width;
-        float h = (float)height;
-
-        float l = 0.0, r = 1.0*w, b = 1.0*h, t = 0.0;
-        float tx = -(r+l)/(r-l), ty = -(t+b)/(t-b), tz = -(far+near)/(far-near);
-        float ortho_float[16] = {2.0/(r-l), 0.0, 0.0, tx,
-            0.0, 2.0/(t-b), 0.0, ty,
-            0.0, 0.0, -2.0/(far-near), tz,
-            0.0, 0.0, 0.0, 1.0};
-        float Intrinsic_float[16] = {fx, 0, cx, 0.0,
-            0.0, fy, cy, 0.0,
-            0.0, 0.0, -(near+far), +near*far,
-            0.0, 0.0, 1.0 , 0.0};
-        glm::mat4 ortho = glm::make_mat4(ortho_float);
-        glm::mat4 Intrinsic = glm::make_mat4(Intrinsic_float);
-
-        ortho = glm::transpose(ortho);
-        Intrinsic = glm::transpose(Intrinsic);
-
-        Projection = ortho*Intrinsic;
-
-        glm::mat4 RT = glm::transpose(glm::make_mat4(RT_float));
-        View = RT;
-    }
-
-    // Model matrix : an identity matrix (model will be at the origin)
-    glm::mat4 Model = glm::mat4(1.0f);
-    // Our ModelViewProjection : multiplication of our 3 matrices
-    glm::mat4 mvp = Projection * View * Model; // Remember, matrix multiplication is the other way around
-
-
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo);
     
-
-    // Create and compile our GLSL program from the shaders
     GLuint shaderProgram = LoadShaders("./shaders/depth.vert", "./shaders/depth.frag", "./shaders/depth.geo");
-
-    for (int i=0; i<2; i++)
+    // Get a handle for our "MVP" uniform
+    // Only during the initialisation
+    GLuint MatrixID = glGetUniformLocation(shaderProgram, "MVP");
+    GLuint patchsizeID = glGetUniformLocation(shaderProgram, "patchsize");
+    
+    for (auto c:commands)
     {
-        // Check and call events
-        glfwPollEvents();
+        printf("reading %s at cam %02d_%02d\n", c.ply_name.c_str(), c.panel_number, c.camera_number);
+        if (read_ply(c.ply_name.c_str()))
+        {
+            fprintf(stderr, "Failed to read file %s\n", c.ply_name.c_str());
+            continue;
+        }
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glm::mat4 mvp = getMVP(c.calib_file.c_str(), c.panel_number, c.camera_number, width, height);
+    
 
-        // Get a handle for our "MVP" uniform
-        // Only during the initialisation
-        GLuint MatrixID = glGetUniformLocation(shaderProgram, "MVP");
-        GLuint nearID = glGetUniformLocation(shaderProgram, "near");
-        GLuint farID = glGetUniformLocation(shaderProgram, "far");
-        GLuint patchsizeID = glGetUniformLocation(shaderProgram, "patchsize");
+        // Create and compile our GLSL program from the shaders
 
-        // Send our transformation to the currently bound shader, in the "MVP" uniform
-        // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
-        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &mvp[0][0]);
-        glUniform1f(nearID, near);
-        glUniform1f(farID, far);
-        glUniform1f(patchsizeID, 0.8f);
+        for (int i=0; i<2; i++)
+        {
+            // Check and call events
+            glfwPollEvents();
 
-        // Use our shader
-        glUseProgram(shaderProgram);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glBindVertexArray(vao);
-        glDrawArrays(GL_POINTS, 0, g_vertex_buffer_data.size()); 
-        glBindVertexArray(0);
+            // Use our shader
+            glUseProgram(shaderProgram);
+            
+            // Send our transformation to the currently bound shader, in the "MVP" uniform
+            // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
+            glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &mvp[0][0]);
+            glUniform1f(patchsizeID, 0.8f);
 
-        // Swap buffers
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+
+            glBindVertexArray(vao);
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*g_vertex_buffer_data.size(), &(g_vertex_buffer_data[0]), GL_STATIC_DRAW);
+            glBindBuffer(GL_ARRAY_BUFFER, 0); 
+            glDrawArrays(GL_POINTS, 0, g_vertex_buffer_data.size()); 
+            glBindVertexArray(0);
+
+            // Swap buffers
+            glfwSwapBuffers(window);
+            glfwPollEvents();
+        }
+
+        cv::Mat screen(height, width, CV_32FC3);
+        std::vector<cv::Mat> rgbChannels(3);
+        cv::Mat save_img_densified, save_img_non_densified;
+
+        glReadPixels(0, 0, width, height, GL_BGR_EXT, GL_FLOAT, screen.data);
+        cv::flip(screen, screen, 0);
+        cv::split(screen, rgbChannels);
+        rgbChannels[0].convertTo(save_img_densified, CV_16UC1, 10000.0);
+        cv::imwrite(c.png_name,save_img_densified);
     }
 
-    cv::Mat screen(height, width, CV_32FC3);
-    std::vector<cv::Mat> rgbChannels(3);
-    cv::Mat save_img_densified, save_img_non_densified;
-
-    glReadPixels(0, 0, width, height, GL_BGR_EXT, GL_FLOAT, screen.data);
-    cv::flip(screen, screen, 0);
-    cv::split(screen, rgbChannels);
-    rgbChannels[0].convertTo(save_img_densified, CV_16UC1, 10000.0);
-    cv::imwrite(argv[2],save_img_densified);
+    
 
     /*
     glEnable(GL_PROGRAM_POINT_SIZE);

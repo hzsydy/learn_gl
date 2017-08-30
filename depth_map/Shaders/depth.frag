@@ -1,8 +1,6 @@
 #version 450 core
 // Interpolated values from the vertex shaders
 in vec4 vpos;
-uniform float near;
-uniform float far;
 
 layout(location = 0) out vec3 color;
 

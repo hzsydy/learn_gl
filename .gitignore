@@ -233,3 +233,7 @@ _Pvt_Extensions
 *.json
 *.ipynb
 *.jpg
+*.py
+*.list
+*.bat
+*.props
