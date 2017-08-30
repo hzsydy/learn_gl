@@ -19,6 +19,9 @@
 #include <iterator>
 #include <algorithm>
 
+#include <cassert>
+#include <map>
+
 std::random_device rd;
 std::mt19937 rng(rd());
 
@@ -76,33 +79,49 @@ int read_ply(const char* ply_filename)
     return 0;
 }
 
-glm::mat4 getMVP(const char* calib_filename, int panelIdx, int cameraIdx, int width, int height)
+static std::string cache_calib_name="";
+static std::map<int, Json::Value> camera_dict;
+static int cache_camera_num = -1;
+static glm::mat4 cache_mvp;
+
+glm::mat4 getMVP(std::string calib_filename, int panelIdx, int cameraIdx, int width, int height)
 {
+    if (cache_camera_num == panelIdx*100+cameraIdx)
+    {
+        return cache_mvp;
+    }
+
     GLfloat near = 0.1f;
     GLfloat far = 1000.0f;
-    char camera_name[256] = {};
-    sprintf(camera_name, "%02d_%02d", panelIdx, cameraIdx);
     glm::mat4 Projection, View;
     {
-        Json::Value root;
-        Json::Reader reader;
-
-        std::ifstream file(calib_filename, std::ifstream::binary);
-        if(!reader.parse(file, root, true)){
-            std::cout  << "Failed to parse configuration\n"
-                << reader.getFormattedErrorMessages();
-        }
-
-        const Json::Value cameras = root["cameras"];
-        Json::Value camera;
-        for (int i = 0; i < cameras.size(); i++)
+        if (calib_filename != cache_calib_name)
         {
-            if (cameras[i]["name"].asString() == camera_name)
+            printf("loading %s\n", calib_filename);
+            Json::Value root;
+            Json::Reader reader;
+            std::ifstream file(calib_filename, std::ifstream::binary);
+            if(!reader.parse(file, root, true)){
+                std::cout  << "Failed to parse configuration\n"
+                    << reader.getFormattedErrorMessages();
+            }
+            const Json::Value cameras = root["cameras"];
+            cache_calib_name = calib_filename;
+            for (int i = 0; i < cameras.size(); i++)
             {
-                camera = cameras[i];
-                break;
+                const char* cam_name = cameras[i]["name"].asCString();
+                int pidx, cidx;
+                sscanf(cam_name, "%02d_%02d", &pidx, &cidx);
+                camera_dict[pidx*100+cidx] = cameras[i];
+                //if (cameras[i]["name"].asString() == camera_name)
+                //{
+                //    camera = cameras[i];
+                //    break;
+                //}
             }
         }
+        Json::Value camera = camera_dict[panelIdx*100+cameraIdx];
+        
         float fx = camera["K"][0][0].asFloat()*scale;
         float fy = camera["K"][1][1].asFloat()*scale;
         float cx = camera["K"][0][2].asFloat()*scale;
@@ -160,6 +179,9 @@ glm::mat4 getMVP(const char* calib_filename, int panelIdx, int cameraIdx, int wi
     glm::mat4 Model = glm::mat4(1.0f);
     // Our ModelViewProjection : multiplication of our 3 matrices
     glm::mat4 mvp = Projection * View * Model; // Remember, matrix multiplication is the other way around
+
+    cache_camera_num = panelIdx*100+cameraIdx;
+    cache_mvp = mvp;
     return mvp;
 }
 
@@ -354,7 +376,7 @@ int main(int argc, char** argv)
             continue;
         }
 
-        glm::mat4 mvp = getMVP(c.calib_file.c_str(), c.panel_number, c.camera_number, width, height);
+        glm::mat4 mvp = getMVP(c.calib_file, c.panel_number, c.camera_number, width, height);
     
 
         // Create and compile our GLSL program from the shaders
